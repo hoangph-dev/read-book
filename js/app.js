@@ -4,7 +4,6 @@ import * as pdfjsLib from '../vendor/pdfjs/pdf.min.mjs';
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdfjs/pdf.worker.min.mjs';
 
 const shelf = document.getElementById('shelf');
-const empty = document.getElementById('empty');
 const bookCount = document.getElementById('bookCount');
 const fileInput = document.getElementById('fileInput');
 const progBox = document.getElementById('progress');
@@ -145,7 +144,6 @@ function coverHue(title) {
 function renderShelf(books) {
   const list = [...books].sort((a, b) => b.updatedAt - a.updatedAt);
   bookCount.textContent = list.length ? `${list.length} cuốn` : '';
-  empty.hidden = list.length > 0;
   shelf.innerHTML = '';
 
   for (const b of list) {
@@ -233,7 +231,6 @@ function pickFile() {
 }
 
 document.getElementById('btnAdd').addEventListener('click', pickFile);
-document.getElementById('btnAddEmpty').addEventListener('click', pickFile);
 fileInput.addEventListener('change', () => {
   const f = fileInput.files && fileInput.files[0];
   if (f) handleFile(f);

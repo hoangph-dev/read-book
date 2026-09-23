@@ -84,6 +84,9 @@
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').catch(() => {});
     }
+    try {
+      if (screen.orientation && screen.orientation.lock) screen.orientation.lock('portrait').catch(() => {});
+    } catch (_) {}
   </script>
   <script type="module" src="js/reader.js"></script>
 </body>

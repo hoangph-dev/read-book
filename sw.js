@@ -1,4 +1,4 @@
-const CACHE = 'sach-reader-v1';
+const CACHE = 'sach-reader-v2';
 const ASSETS = [
   './',
   './index.html',

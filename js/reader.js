@@ -86,34 +86,36 @@ function renderBook() {
   document.title = book.title || 'Đọc sách';
   loadText.textContent = 'Đang sắp xếp sách…';
   readerMain.classList.add('loading-on');
+  readerMain.innerHTML = '';
   tocList.innerHTML = '';
 
-  const frag = document.createDocumentFragment();
   const total = book.pages.length;
+  const pageFrag = document.createDocumentFragment();
+  const tocFrag = document.createDocumentFragment();
   let i = 0;
-  const CHUNK = 25;
   const pump = () => {
-    const end = Math.min(i + CHUNK, total);
-    for (; i < end; i++) {
-      const sec = makePage(book.pages[i], i);
-      frag.appendChild(sec);
-      const li = document.createElement('li');
-      li.className = 'toc-item';
-      li.dataset.i = i;
-      li.textContent = `Trang ${i + 1}`;
-      tocList.appendChild(li);
-    }
-    if (i < total) {
-      loadText.textContent = `Đang sắp xếp trang ${i}/${total}…`;
-      requestAnimationFrame(pump);
-    } else {
-      readerMain.appendChild(frag);
-      pageEls = [...readerMain.querySelectorAll('.pg')];
-      measureOffsets();
-      readerMain.classList.remove('loading-on');
-      ready = true;
-      restorePosition();
-      updatePageInfo();
+    try {
+      const end = Math.min(i + CHUNK_SIZE, total);
+      for (; i < end; i++) {
+        pageFrag.appendChild(makePage(book.pages[i], i));
+        const li = document.createElement('li');
+        li.className = 'toc-item';
+        li.dataset.i = i;
+        li.textContent = `Trang ${i + 1}`;
+        tocFrag.appendChild(li);
+      }
+      if (i < total) {
+        loadText.textContent = `Đang sắp xếp trang ${i}/${total}…`;
+        requestAnimationFrame(pump);
+        return;
+      }
+      loadText.textContent = 'Đang dựng sách…';
+      readerMain.appendChild(pageFrag);
+      tocList.appendChild(tocFrag);
+      requestAnimationFrame(() => finishBuild(book.progress || 0, false));
+    } catch (err) {
+      console.error(err);
+      loadText.textContent = 'Không dựng được sách, thử mở lại';
     }
   };
   pump();
@@ -121,6 +123,25 @@ function renderBook() {
 
 function measureOffsets() {
   offsets = pageEls.map((el) => el.offsetTop);
+}
+
+function finishBuild(restoreFrac, fracOnly) {
+  try {
+    pageEls = [...readerMain.querySelectorAll('.pg')];
+    measureOffsets();
+    readerMain.classList.remove('loading-on');
+    ready = true;
+    const frac = fracOnly
+      ? restoreFrac
+      : Math.min(0.999, Math.max(0, restoreFrac));
+    window.scrollTo(0, frac * (document.documentElement.scrollHeight - window.innerHeight));
+    updatePageInfo();
+  } catch (err) {
+    console.error(err);
+    readerMain.classList.remove('loading-on');
+    ready = true;
+    loadText.textContent = 'Không dựng được sách, thử mở lại';
+  }
 }
 
 function currentIndex() {
@@ -140,12 +161,6 @@ function updatePageInfo() {
   const idx = currentIndex();
   const pct = Math.min(100, Math.max(0, Math.round((window.scrollY / Math.max(1, document.documentElement.scrollHeight - window.innerHeight)) * 100)));
   pageInfoEl.textContent = `Trang ${idx + 1}/${book.pageCount} · ${pct}%`;
-}
-
-function restorePosition() {
-  const frac = Math.min(0.999, Math.max(0, book.progress || 0));
-  const target = frac * (document.documentElement.scrollHeight - window.innerHeight);
-  window.scrollTo(0, target);
 }
 
 let saveTimer = null;
@@ -176,17 +191,19 @@ function rebuild() {
   const total = book.pages.length;
   let i = 0;
   const pump = () => {
-    const end = Math.min(i + CHUNK_SIZE, total);
-    for (; i < end; i++) frag.appendChild(makePage(book.pages[i], i));
-    if (i < total) requestAnimationFrame(pump);
-    else {
+    try {
+      const end = Math.min(i + CHUNK_SIZE, total);
+      for (; i < end; i++) frag.appendChild(makePage(book.pages[i], i));
+      if (i < total) {
+        requestAnimationFrame(pump);
+        return;
+      }
       readerMain.appendChild(frag);
-      pageEls = [...readerMain.querySelectorAll('.pg')];
-      measureOffsets();
+      requestAnimationFrame(() => finishBuild(frac, true));
+    } catch (err) {
+      console.error(err);
       readerMain.classList.remove('loading-on');
       ready = true;
-      window.scrollTo(0, frac * (document.documentElement.scrollHeight - window.innerHeight));
-      updatePageInfo();
     }
   };
   pump();

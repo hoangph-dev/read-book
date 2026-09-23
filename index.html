@@ -25,16 +25,6 @@
 
   <main id="shelf" class="shelf"></main>
 
-  <div id="empty" class="empty" hidden>
-    <svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-    </svg>
-    <p>Chưa có sách nào.</p>
-    <p class="sub">Nhấn nút <b>+</b> để thêm file PDF. Sách được lưu ngay trên thiết bị, không cần internet.</p>
-    <button class="btn primary" id="btnAddEmpty">Thêm sách PDF</button>
-  </div>
-
   <div id="progress" class="progress" hidden>
     <div class="progress-head">
       <span id="progressLabel">Đang xử lý…</span>
@@ -52,6 +42,9 @@
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').catch(() => {});
     }
+    try {
+      if (screen.orientation && screen.orientation.lock) screen.orientation.lock('portrait').catch(() => {});
+    } catch (_) {}
   </script>
 </body>
 </html>

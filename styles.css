@@ -37,6 +37,8 @@ html[data-theme='light'] {
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
+[hidden] { display: none !important; }
+
 html, body {
   margin: 0;
   background: var(--bg);
@@ -174,20 +176,6 @@ button {
 
 /* ============ Empty state ============ */
 
-.empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 4rem 2rem;
-  text-align: center;
-  color: var(--text-dim);
-}
-.empty svg { opacity: 0.5; margin-bottom: 0.5rem; }
-.empty p { margin: 0; font-size: 1rem; }
-.empty .sub { font-size: 0.85rem; line-height: 1.6; }
-.empty .btn { margin-top: 1rem; }
-
 /* ============ Progress ============ */
 
 .progress {
@@ -266,6 +254,8 @@ button {
   max-width: 44rem;
   margin: 0 auto;
   padding: 3.2rem 1.35rem 0;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 800px;
 }
 .pg + .pg::before {
   content: "";
