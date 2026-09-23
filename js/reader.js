@@ -1,4 +1,5 @@
 import { db } from './db.js';
+import { extractText, EXTRACT_VERSION } from './extract.js';
 
 const params = new URLSearchParams(window.location.search);
 const bookId = params.get('id');
@@ -60,17 +61,24 @@ function applySettings() {
 
 const CHUNK_SIZE = 25;
 
-function makePage(text, index) {
+function makePage(page, index) {
   const sec = document.createElement('section');
   sec.className = 'pg';
   sec.dataset.i = index;
   const inner = document.createElement('div');
   inner.className = 'pg-inner';
-  if (text && text.trim()) {
-    inner.textContent = text;
+  if (page && page.kind === 'image') {
+    inner.classList.add('pg-image');
+    const img = document.createElement('img');
+    img.src = page.src;
+    img.alt = `Trang ${index + 1}`;
+    if (page.w && page.h) img.style.aspectRatio = `${page.w} / ${page.h}`;
+    inner.appendChild(img);
+  } else if (typeof page === 'string' && page.trim()) {
+    inner.textContent = page;
   } else {
     inner.classList.add('pg-empty');
-    inner.textContent = '(Trang này là hình ảnh, không có chữ)';
+    inner.textContent = '(Trang hình ảnh)';
   }
   const mark = document.createElement('div');
   mark.className = 'pg-mark';
@@ -235,16 +243,37 @@ function goToPage(index) {
   }
 }
 
+async function upgradeBook(b) {
+  loadText.textContent = 'Đang nâng cấp sách…';
+  readerMain.classList.add('loading-on');
+  try {
+    const { pages, title, author, numPages } = await extractText(b.file, (cur, total) => {
+      loadText.textContent = `Đang nâng cấp sách ${cur}/${total}…`;
+    });
+    b.pages = pages;
+    b.pageCount = numPages;
+    if (title) b.title = title;
+    if (author) b.author = author;
+    b.ver = EXTRACT_VERSION;
+    await db.put(b);
+  } catch (err) {
+    console.error('nâng cấp sách thất bại:', err);
+  }
+}
+
 if (!bookId) {
   window.location.replace('index.html');
 } else {
-  db.get(bookId).then((b) => {
+  db.get(bookId).then(async (b) => {
     if (!b) {
       loadText.textContent = 'Không tìm thấy sách';
       setTimeout(() => window.location.replace('index.html'), 1200);
       return;
     }
     book = b;
+    if (book.ver !== EXTRACT_VERSION && book.file) {
+      await upgradeBook(book);
+    }
     renderBook();
   }).catch(() => {
     loadText.textContent = 'Lỗi mở sách';

@@ -1,4 +1,4 @@
-const CACHE = 'sach-reader-v2';
+const CACHE = 'sach-reader-v4';
 const ASSETS = [
   './',
   './index.html',
@@ -6,6 +6,7 @@ const ASSETS = [
   './styles.css',
   './manifest.webmanifest',
   './js/db.js',
+  './js/extract.js',
   './js/reader.js',
   './js/app.js',
   './vendor/pdfjs/pdf.min.mjs',

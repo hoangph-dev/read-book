@@ -1,7 +1,5 @@
 import { db, makeId } from './db.js';
-import * as pdfjsLib from '../vendor/pdfjs/pdf.min.mjs';
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdfjs/pdf.worker.min.mjs';
+import { extractText, EXTRACT_VERSION } from './extract.js';
 
 const shelf = document.getElementById('shelf');
 const bookCount = document.getElementById('bookCount');
@@ -32,102 +30,6 @@ function setProgress(cur, total) {
   progBar.style.width = `${pct}%`;
 }
 
-function layoutPage(items) {
-  const els = items
-    .filter((o) => typeof o.str === 'string' && o.str.trim().length > 0)
-    .map((o) => ({
-      str: o.str,
-      x: o.transform[4],
-      y: o.transform[5],
-      h: Math.abs(o.transform[3]) || o.height || 1,
-      w: o.width || 0,
-    }))
-    .sort((a, b) => a.y - b.y || a.x - b.x);
-
-  const lines = [];
-  let cur = null;
-  for (const it of els) {
-    if (!cur) {
-      cur = { y: it.y, h: it.h, items: [it] };
-      continue;
-    }
-    if (Math.abs(it.y - cur.y) <= Math.max(cur.h, it.h) * 0.6) {
-      cur.h = Math.max(cur.h, it.h);
-      cur.y = (cur.y + it.y) / 2;
-      cur.items.push(it);
-    } else {
-      lines.push(cur);
-      cur = { y: it.y, h: it.h, items: [it] };
-    }
-  }
-  if (cur) lines.push(cur);
-
-  const lineStrs = lines.map((ln) => {
-    ln.items.sort((a, b) => a.x - b.x);
-    let out = '';
-    let end = -Infinity;
-    let h = 0;
-    for (const it of ln.items) {
-      if (it.x > end + Math.max(h, it.h) * 0.28 && out) out += ' ';
-      out += it.str;
-      end = it.x + it.w;
-      h = it.h;
-    }
-    return { text: out, h: ln.h, y: ln.y };
-  });
-
-  if (lineStrs.length === 0) return '';
-
-  const gaps = [];
-  for (let i = 1; i < lineStrs.length; i++) {
-    const g = lineStrs[i].y - (lineStrs[i - 1].y + lineStrs[i - 1].h);
-    if (g > 0) gaps.push(g);
-  }
-  let threshold = Infinity;
-  if (gaps.length) {
-    const med = [...gaps].sort((a, b) => a - b)[Math.floor(gaps.length / 2)];
-    threshold = Math.max(med * 2.4, med + lineStrs[0].h);
-  }
-
-  const paras = [];
-  let para = '';
-  let prevBottom = null;
-  for (const ln of lineStrs) {
-    const text = ln.text.trim();
-    if (!para) {
-      para = text;
-    } else {
-      const isNew = prevBottom !== null && ln.y > prevBottom + threshold;
-      para += (isNew ? '\n\n' : ' ') + text;
-    }
-    prevBottom = ln.y + ln.h;
-  }
-  if (para.trim()) paras.push(para.trim());
-  return paras.join('\n\n');
-}
-
-async function extractText(ab, onProgress) {
-  const data = new Uint8Array(ab);
-  const pdf = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
-  const pages = [];
-  let title = '';
-  let author = '';
-  try {
-    const meta = await pdf.getMetadata();
-    const info = (meta && meta.info) || {};
-    title = (info.Title || '').toString().trim();
-    author = (info.Author || '').toString().trim();
-  } catch (_) { /* metadata lỗi thì bỏ qua */ }
-
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const tc = await page.getTextContent();
-    pages.push(layoutPage(tc.items));
-    if (onProgress) onProgress(i, pdf.numPages);
-    page.cleanup();
-  }
-  return { pages, title, author, numPages: pdf.numPages };
-}
 
 function escapeHTML(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({
@@ -201,6 +103,7 @@ async function handleFile(file) {
   setProgress(0, 1);
   try {
     const ab = await file.arrayBuffer();
+    const fileCopy = file.size <= 25 * 1024 * 1024 ? ab.slice(0) : null;
     const { pages, title, author, numPages } = await extractText(ab, setProgress);
     const t = title || file.name.replace(/\.pdf$/i, '').trim() || 'Sách không tên';
     const book = {
@@ -212,7 +115,9 @@ async function handleFile(file) {
       progress: 0,
       updatedAt: Date.now(),
       size: file.size,
+      ver: EXTRACT_VERSION,
     };
+    if (fileCopy) book.file = fileCopy;
     await db.put(book);
     await refreshShelf();
     toast('Đã thêm sách vào thư viện');
