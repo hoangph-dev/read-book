@@ -43,6 +43,7 @@ export async function putBlob(
     access: 'public',
     contentType,
     addRandomSuffix: false,
+    allowOverwrite: true,
   });
   return { url: res.url, downloadUrl: res.downloadUrl, pathname: res.pathname };
 }
