@@ -28,8 +28,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
+    const body = (await request.json()) as HandleUploadBody;
     const jsonResponse = await handleUpload({
-      body: request.body as unknown as HandleUploadBody,
+      body,
       request,
       onBeforeGenerateToken: async (_pathname, _clientPayload) => {
         return { allowedContentTypes: ['application/pdf', 'application/json', 'image/jpeg', 'image/png'], maximumSizeInBytes: 200 * 1024 * 1024 };
