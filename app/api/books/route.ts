@@ -22,9 +22,15 @@ function toRow(body: Partial<BookRow>): BookRow {
 
 /** Danh sách sách chung (không kèm pages/url file để nhẹ). */
 export async function GET() {
-  const rows = await getCatalog();
-  const list = rows.map(({ pagesUrl: _p, pdfUrl: _f, ver: _v, ...rest }) => rest);
-  return NextResponse.json(list);
+  try {
+    const rows = await getCatalog();
+    const list = rows.map(({ pagesUrl: _p, pdfUrl: _f, ver: _v, ...rest }) => rest);
+    return NextResponse.json(list);
+  } catch (err) {
+    console.error('GET /api/books fail:', err);
+    const msg = err instanceof Error ? err.message : 'Không đọc được thư viện';
+    return NextResponse.json({ error: msg }, { status: 503 });
+  }
 }
 
 /** Ghi thêm (hoặc cập nhật) một đầu sách — payload nhỏ, dữ liệu nặng đã nằm ở blob. */

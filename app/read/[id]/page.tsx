@@ -421,7 +421,7 @@ export default function ReaderPage() {
       </div>
 
       {/* Nội dung sách — React không render children vào đây, toàn bộ là DOM thủ công */}
-      <main className="reader-main pt-[4.2rem] pb-24" ref={mainRef} />
+      <main className="reader-main pt-[calc(4.2rem+env(safe-area-inset-top))] pb-[calc(6rem+env(safe-area-inset-bottom))]" ref={mainRef} />
 
       {boot === 'loading' && (
         <div className="pointer-events-none fixed inset-x-0 top-24 z-40 flex flex-col items-center gap-4 px-4 text-sm text-muted-foreground">

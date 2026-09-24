@@ -36,15 +36,26 @@ export async function uploadBlob(pathname: string, body: Blob): Promise<BlobResu
   });
 }
 
+async function parseError(res: Response): Promise<Error> {
+  try {
+    const body = await res.json();
+    if (body && typeof body.error === 'string') return new Error(body.error);
+  } catch {
+    /* không parse được thì dùng status */
+  }
+  return new Error(`Lỗi máy chủ (HTTP ${res.status})`);
+}
+
 export async function listSharedBooks(): Promise<BookRow[]> {
   const res = await fetch('/api/books', { cache: 'no-store' });
-  if (!res.ok) throw new Error(`list books fail ${res.status}`);
-  return res.json();
+  if (!res.ok) throw await parseError(res);
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
 }
 
 export async function getSharedBook(id: string): Promise<Book> {
   const res = await fetch(`/api/books/${encodeURIComponent(id)}`, { cache: 'no-store' });
-  if (!res.ok) throw new Error(`get book fail ${res.status}`);
+  if (!res.ok) throw await parseError(res);
   return res.json();
 }
 
@@ -54,11 +65,11 @@ export async function createSharedBook(meta: Partial<BookRow>): Promise<BookRow>
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(meta),
   });
-  if (!res.ok) throw new Error(`create book fail ${res.status}`);
+  if (!res.ok) throw await parseError(res);
   return res.json();
 }
 
 export async function deleteSharedBook(id: string): Promise<void> {
   const res = await fetch(`/api/books/${encodeURIComponent(id)}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error(`delete book fail ${res.status}`);
+  if (!res.ok) throw await parseError(res);
 }

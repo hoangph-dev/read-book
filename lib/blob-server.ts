@@ -77,9 +77,15 @@ export async function getCatalog(): Promise<BookRow[]> {
   if (LOCAL_ROOT) {
     url = localUrl(CATALOG_PATH);
   } else {
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      throw new Error('Chưa cấu hình BLOB_READ_WRITE_TOKEN (Vercel Blob)');
+    }
     const { blobs } = await blobList();
     const found = blobs.find((b) => b.pathname === CATALOG_PATH);
-    if (!found) return [];
+    if (!found) {
+      await putBlob(CATALOG_PATH, '[]', 'application/json');
+      return [];
+    }
     url = found.url;
   }
   try {

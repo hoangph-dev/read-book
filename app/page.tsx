@@ -30,7 +30,7 @@ export default function HomePage() {
   useEffect(() => {
     refresh().catch((e) => {
       console.error(e);
-      toast('Không tải được thư viện chung — kiểm tra kết nối.');
+      toast(e instanceof Error ? e.message : 'Không tải được thư viện chung.');
     });
   }, [refresh]);
 
@@ -67,7 +67,7 @@ export default function HomePage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 pb-16">
-      <header className="sticky top-0 z-20 -mx-4 flex items-center gap-3 border-b bg-background/85 px-4 py-3 backdrop-blur">
+      <header className="sticky top-0 z-20 -mx-4 flex items-center gap-3 border-b bg-background/85 px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] backdrop-blur">
         <h1 className="flex-1 text-lg font-semibold tracking-tight">
           <span className="inline-flex items-center gap-2">
             <BookOpenText className="h-5 w-5 text-primary" />
@@ -145,7 +145,7 @@ export default function HomePage() {
         </Tabs>
       </main>
 
-      <footer className="mt-10 text-center text-xs text-muted-foreground">
+      <footer className="mt-10 pb-[calc(1rem+env(safe-area-inset-bottom))] text-center text-xs text-muted-foreground">
         Sách chung được lưu trên máy chủ; sách cá nhân chỉ nằm trên thiết bị này.
       </footer>
     </div>
