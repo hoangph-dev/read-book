@@ -1,10 +1,12 @@
+import type { Book } from './types';
+
 const DB_NAME = 'sach-reader';
 const DB_VERSION = 1;
 const STORE = 'books';
 
-let _dbPromise = null;
+let _dbPromise: Promise<IDBDatabase> | null = null;
 
-function openDB() {
+function openDB(): Promise<IDBDatabase> {
   if (_dbPromise) return _dbPromise;
   _dbPromise = new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
@@ -21,13 +23,13 @@ function openDB() {
   return _dbPromise;
 }
 
-function run(mode, op) {
+function run<T>(mode: IDBTransactionMode, op: (s: IDBObjectStore) => IDBRequest | null): Promise<T> {
   return openDB().then(
     (db) =>
-      new Promise((resolve, reject) => {
+      new Promise<T>((resolve, reject) => {
         const t = db.transaction(STORE, mode);
         const store = t.objectStore(STORE);
-        let result = undefined;
+        let result: T = undefined as T;
         const req = op(store);
         if (req) {
           req.onsuccess = () => {
@@ -37,26 +39,22 @@ function run(mode, op) {
         t.oncomplete = () => resolve(result);
         t.onerror = () => reject(t.error);
         t.onabort = () => reject(t.error);
-      })
+      }),
   );
 }
 
-export const db = {
-  put(book) {
-    return run('readwrite', (s) => s.put(book));
-  },
-  getAll() {
-    return run('readonly', (s) => s.getAll());
-  },
-  get(id) {
-    return run('readonly', (s) => s.get(id));
-  },
-  delete(id) {
-    return run('readwrite', (s) => s.delete(id));
-  },
-};
+export function idbPut(book: Book): Promise<void> {
+  return run('readwrite', (s) => s.put(book)) as Promise<void>;
+}
 
-export function makeId() {
-  if (globalThis.crypto.randomUUID) return globalThis.crypto.randomUUID();
-  return 'b-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+export function idbGetAll(): Promise<Book[]> {
+  return run<Book[]>('readonly', (s) => s.getAll());
+}
+
+export function idbGet(id: string): Promise<Book | undefined> {
+  return run<Book | undefined>('readonly', (s) => s.get(id));
+}
+
+export function idbDelete(id: string): Promise<void> {
+  return run('readwrite', (s) => s.delete(id)) as Promise<void>;
 }

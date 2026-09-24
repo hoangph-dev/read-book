@@ -1,57 +1,66 @@
-# Sách — PDF Reader PWA
+# Đọc sách PDF — Thư viện chung
 
-Ứng dụng đọc sách PDF kiểu reflow (chuyển thành văn bản sạch như ebook), chạy được trên
-mọi thiết bị (Android, iPhone, máy tính), **hoạt động hoàn toàn offline**, tự lưu vị trí đọc.
+PWA đọc sách PDF chạy trên **Next.js (App Router) + shadcn/ui**, deploy **Vercel**.
+Người dùng A tải PDF lên → mọi người truy cập website đều đọc được. Sách được
+trích xuất văn bản ngay tại trình duyệt, lưu **Vercel Blob** (không cần database).
 
-Giải quyết bài toán: đọc PDF trực tiếp khó đọc trên điện thoại (không có chế độ đọc sách,
-không lưu vệt mình đã đọc đến đâu).
-
-## Tính năng
-
-- **Chế độ đọc sách**: PDF được trích xuất thành văn bản, hiển thị lại như ebook — chữ to,
-  giãn dòng, cột tối ưu, ngắt theo từng trang PDF kèm số trang.
-- **Tự lưu tiến độ**: vị trí đọc được ghi tự động khi cuộn/dừng/rời trang; mở lại là đọc tiếp
-  đúng đoạn, thư viện hiển thị % và nút "Đọc tiếp".
-- **Tùy chỉnh trải nghiệm**: cỡ chữ (A−/A+), font Serif/Sans, 3 nền — tối / giấy vàng / sáng.
-- **Offline 100%**: là PWA — sau lần mở đầu, sách + ứng dụng hoạt động không cần internet.
-- **Quyền riêng tư**: toàn bộ sách và tiến độ lưu trong IndexedDB trên thiết bị, không gửi
-  đi đâu, không cần tài khoản.
-
-## Chạy thử
+## Chạy local
 
 ```bash
-python3 -m http.server 8000
+npm install
+BLOB_LOCAL_ROOT=./dev-blobs npm run dev
+# mở http://localhost:3000
 ```
 
-Mở `http://localhost:8000` trên máy, hoặc `http://<địa-chỉ-máy>:8000` trên điện thoại cùng WiFi
-(Chrome → menu ⋮ → **Add to Home screen** để cài như app).
+- Chế độ dev không cần tài khoản Vercel: blob được ghi vào `dev-blobs/` và phục
+  vụ qua `/api/dev-blob/...`.
+- Xóa dữ liệu test: `rm -rf dev-blobs`
 
-> Service worker chỉ hoạt động trên `localhost` hoặc HTTPS. Muốn dùng lâu dài trên điện thoại,
-> deploy lên Netlify / Vercel / GitHub Pages là xong.
+## Deploy lên Vercel
 
-## Kiến trúc
+1. Tạo project trên Vercel, import repo này.
+2. Thêm **Vercel Blob Storage** (tab Storage) — Vercel tự tạo env
+   `BLOB_READ_WRITE_TOKEN` (hoặc tự thêm token từ dashboard → Settings → Storage).
+3. Deploy. Không cần cấu hình thêm: dữ liệu nặng (PDF, trang ảnh) được trình
+   duyệt tải **trực tiếp lên Blob** qua endpoint `/api/blob-upload` (presigned),
+   nên không vướng giới hạn body của serverless function. Gate: mọi người đều
+   upload được (dự án nội bộ).
 
-| File | Chức năng |
+## Kiến trúc dữ liệu
+
+| Nơi | Dữ liệu |
 |---|---|
-| `index.html` + `js/app.js` | Thư viện sách: thêm PDF, trích xuất text (pdf.js), quản lý % tiến độ |
-| `reader.html` + `js/reader.js` | Màn hình đọc reflow + tự lưu vị trí |
-| `js/db.js` | Lớp IndexedDB |
-| `sw.js`, `manifest.webmanifest` | PWA: cache offline + cài ra màn hình chính |
-| `vendor/pdfjs/` | pdf.js bản địa (không phụ thuộc CDN) |
-| `tools/` | Script sinh icon/PDF test, test E2E chạy bằng headless Chrome |
+| Vercel Blob `catalog.json` | Danh sách sách chung (metadata, không kèm pages) |
+| Vercel Blob `books/<id>/<id>.pdf` + `.pages.json` | File gốc + toàn bộ trang đã trích xuất |
+| IndexedDB (mỗi trình duyệt) | Cache sách đã đọc (đọc offline) + `progress` (vị trí đọc riêng mỗi người) + sách "chỉ lưu máy" |
+| localStorage | Cài đặt đọc (cỡ chữ, font, theme) |
 
-Sách được lưu dưới dạng văn bản đã trích xuất (kèm PDF gốc đã giải phóng ngay khi xử lý xong),
-nên mở lại tức thì, không phải parse lại.
+API: `POST/GET /api/books`, `GET/DELETE /api/books/[id]`, `POST /api/blob-upload`,
+`GET /api/mode`. Sách chung cập nhật qua đọc-ghi `catalog.json` (đủ dùng cho
+dự án nội bộ; ghi đồng thời hiếm).
 
-## Test
+## Pipeline trích xuất PDF (lib/extract.ts)
+
+`pdf.js` → text items (tọa độ) → `layoutPage()`:
+tách cột, gom dòng theo baseline, dấu tiếng Việt NFC, bỏ item trùng lặp,
+tự tách đoạn; trang rác/scan được **render thành ảnh JPEG** lưu trong pages.
+Phiên bản pipeline theo `EXTRACT_VERSION` → sách cũ tự nâng cấp khi mở.
+
+## Kiểm thử
 
 ```bash
-node tools/e2e.mjs   # E2E: import PDF → đọc → lưu tiến độ → offline, chạy bằng Chrome headless
+npm run test    # unit test layout (8 case)
+npm run e2e     # build production + kịch bản: A upload → B đọc (headless Chrome)
 ```
 
-Yêu cầu `google-chrome` trong PATH (hoặc đặt biến môi trường `CHROME`).
+## Cấu trúc
 
-## Giới hạn
-
-- PDF là ảnh scan (không có lớp chữ) sẽ không trích xuất được — cần OCR.
-- Sách có bố cục nhiều cột / phức tạp có thể sai thứ tự văn bản; tiểu thuyết PDF thường chuẩn.
+```
+app/            Next.js: / (tủ sách), /read/[id] (trình đọc), api/*
+components/ui/  shadcn/ui (Button, Dialog, Tabs, Select, Progress, ...)
+components/book/ UploadDialog, BookCard
+lib/            extract.ts, upload.ts, api.ts, idb.ts, blob-server.ts, types.ts
+public/         sw.js (PWA shell), manifest, icons, pdf.worker
+scripts/        e2e.mjs, copy-worker.mjs
+tests/          layout.test.ts
+```
